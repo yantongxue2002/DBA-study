@@ -106,7 +106,8 @@ def init_conn_pool(size):
         print("未能创建任何池内连接，回退为按需创建连接模式")
     else:
         # 记录池对象及大小，便于复用判断
-        q._pool_size = size
+        # 使用 setattr 动态添加属性，避免类型检查报错
+        setattr(q, '_pool_size', size)
         _CONN_POOL = q
         print(f"初始化连接池：目标={size}，实际创建={created}")
 
