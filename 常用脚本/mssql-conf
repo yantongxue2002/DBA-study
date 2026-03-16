@@ -1,0 +1,157 @@
+#!/bin/bash
+# Don't generate .pyc files
+export PYTHONDONTWRITEBYTECODE=1
+
+CMD="exec $(dirname $0)/../lib/mssql-conf/mssql-conf.py $@"
+
+# Handle all permissions checks and file creations internally
+# This allows for all error messages to be localized
+/bin/bash -c "$CMD"
+exit $?
+
+# ===========================================
+# SQL Server 完整配置项说明文档
+# ===========================================
+# 使用方法: sudo ./mssql-conf set <section> <property> <value>
+# 示例：sudo ./mssql-conf set networksettings tcpport 1433
+# ===========================================
+
+# ==================== 网络设置 ====================
+# TCP 端口
+sudo ./mssql-conf set networksettings tcpport 1433
+
+# OutboundNetworkAccess (出站网络访问)
+# 可选值：Enabled, Disabled
+sudo ./mssql-conf set networksettings outboundnetworkaccess Enabled
+
+# TLS 加密配置
+# 可选值：0 (禁用), 1 (启用)
+sudo ./mssql-conf set networksettings tls 1
+
+# ==================== SQL Server 代理 ====================
+# 启用/禁用 SQL Server Agent
+# 可选值：0 (禁用), 1 (启用)
+sudo ./mssql-conf set agent enabled 1
+
+# ==================== Windows 身份验证 ====================
+# Active Directory 身份验证
+# 可选值：Enabled, Disabled
+sudo ./mssql-conf set activedirectoryauthentication enabled Enabled
+
+# Kerberos 配置
+sudo ./mssql-conf set activedirectoryauthentication krb5conf /etc/krb5.conf
+sudo ./mssql-conf set activedirectoryauthentication keytabfile /var/opt/mssql/secrets/mssql.keytab
+
+# ==================== 排序规则 ====================
+# 设置默认排序规则
+# 常用值:
+#   SQL_Latin1_General_CP1_CI_AS - 拉丁语不区分大小写
+#   Chinese_PRC_CI_AS - 简体中文不区分大小写
+#   Chinese_PRC_CS_AS - 简体中文区分大小写
+sudo ./mssql-conf set collation sqlcollation SQL_Latin1_General_CP1_CI_AS
+
+# ==================== 客户反馈 ====================
+# 客户反馈计划
+# 可选值：Enabled, Disabled
+sudo ./mssql-conf set customerfeedback enabled Enabled
+
+# ==================== 数据库邮件配置文件 ====================
+# 数据库邮件配置
+sudo ./mssql-conf set database_mail default_profile DefaultMailProfile
+sudo ./mssql-conf set database_mail smtp_server smtp.example.com
+sudo ./mssql-conf set database_mail smtp_port 587
+sudo ./mssql-conf set database_mail enable_ssl 1
+
+# ==================== 默认数据目录 ====================
+sudo ./mssql-conf set filelocations defaultdatadir /var/opt/mssql/data
+
+# ==================== 默认日志目录 ====================
+sudo ./mssql-conf set filelocations defaultlogdir /var/opt/mssql/log
+
+# ==================== 默认 Master 数据库文件目录 ====================
+sudo ./mssql-conf set filelocations masterdbfilenamedir /var/opt/mssql/data
+
+# ==================== 默认 Master 数据库文件名 ====================
+sudo ./mssql-conf set filelocations masterdbfilename master.mdf
+sudo ./mssql-conf set filelocations masterdblogfilename mastlog.ldf
+
+# ==================== 默认转储目录 ====================
+sudo ./mssql-conf set filelocations defaultdumpdir /var/opt/mssql/data
+
+# ==================== 默认错误日志目录 ====================
+sudo ./mssql-conf set filelocations defaulterrorlogdir /var/opt/mssql/log
+
+# ==================== 默认备份目录 ====================
+sudo ./mssql-conf set filelocations defaultbackupdir /var/opt/mssql/backup
+
+# ==================== 转储类型版本 ====================
+# dumpstype: 0 (完整), 1 (筛选), 2 (小型)
+sudo ./mssql-conf set coredump dumpstype 0
+sudo ./mssql-conf set coredump dumpsize 0
+
+# ==================== 高可用性 ====================
+# Always On 高可用性配置
+# 可选值：0 (禁用), 1 (启用)
+sudo ./mssql-conf set hadr hadrenabled 1
+
+# ==================== 本地审核目录 ====================
+sudo ./mssql-conf set localauditdirectory path /var/opt/mssql/data/audit
+
+# ==================== 区域设置 ====================
+# LCID 设置 (语言标识符)
+# 1033 = 英语 (美国)
+# 2052 = 简体中文
+# 1028 = 繁体中文
+sudo ./mssql-conf set language lcid 1033
+
+# ==================== 内存限制 ====================
+# 内存限制 (单位：MB)
+# 设置为 0 表示不限制
+sudo ./mssql-conf set memory memorylimitmb 8192
+
+# ==================== Microsoft 分布式事务处理协调器 ====================
+# DTC 配置
+sudo ./mssql-conf set dtc dtcenabled 1
+sudo ./mssql-conf set dtc dtctransactiontimeout 60
+
+# ==================== 机器学习服务 EULA ====================
+# Python 扩展支持
+sudo ./mssql-conf set mlservices pythonenabled 0
+sudo ./mssql-conf set mlservices rextensonsuse 0
+# 接受 EULA 协议
+sudo ./mssql-conf set mlservices eula 1
+
+# ==================== 跟踪标志 ====================
+# 常用跟踪标志:
+# 1118 - TempDB 优化 (减少分配争用)
+# 3226 - 禁止备份成功消息
+# 1204 - 死锁详细信息
+# 1222 - XML 格式死锁信息
+sudo ./mssql-conf set traceflags enabled 1118,3226
+
+# ==================== 其他重要配置 ====================
+# TempDB 配置
+sudo ./mssql-conf set tempdb tempdbfilecount 8
+sudo ./mssql-conf set tempdb tempdbfilesize 256
+sudo ./mssql-conf set tempdb tempdbfileautogrowth 64
+
+# 错误日志配置
+sudo ./mssql-conf set errorlog errorlognum 6
+sudo ./mssql-conf set errorlog errorlogsize 10240
+
+# 缓冲池扩展
+sudo ./mssql-conf set bufferpoolextension bpesize 0
+
+# 扩展事件
+sudo ./mssql-conf set xevent xeventchunksize 4
+
+# ===========================================
+# 配置完成后需要重启 SQL Server 服务:
+# sudo systemctl restart mssql-server
+# ===========================================
+
+# 查看所有配置:
+# sudo ./mssql-conf getall
+
+# 删除配置:
+# sudo ./mssql-conf unset <section> <property>
