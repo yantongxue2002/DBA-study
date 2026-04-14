@@ -29,3 +29,32 @@ vi /etc/hostname
 reboot
 
 --- 安装sqlserver
+
+
+-- 备份事务日志，确保日志文件不会无限增长
+BACKUP LOG [MOM]
+TO DISK = N'D:\SQL_Backup\Log\MOM_log_20260407.trn'
+WITH
+    INIT,
+    NAME = N'MOM-Transaction Log Backup',
+    STATS = 10;
+GO
+
+-- 备份自上次完整备份后变化的数据
+BACKUP DATABASE [MOM]
+TO DISK = N'D:\SQL_Backup\Diff\MOM_diff_20260407.bak'
+WITH
+    DIFFERENTIAL,   -- 指定为差异备份
+    INIT,
+    NAME = N'MOM-Differential Backup',
+    STATS = 10;
+GO
+
+-- 备份整个 WMS 数据库到指定路径
+BACKUP DATABASE [WMS]
+TO DISK = N'D:\SQL_Backup\Full\WMS_full_20260407.bak'
+WITH
+    INIT,           -- 覆盖同名文件
+    NAME = N'WMS-Full Database Backup',
+    STATS = 10;     -- 每完成10%显示一次进度
+GO
