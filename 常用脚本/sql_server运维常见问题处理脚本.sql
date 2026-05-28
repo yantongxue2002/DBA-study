@@ -223,3 +223,5 @@ EXEC sys.sp_cdc_enable_table
 SELECT name, is_tracked_by_cdc 
 FROM sys.tables  
 WHERE is_tracked_by_cdc > 0
+
+-- 四、
