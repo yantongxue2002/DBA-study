@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}{{ instance_name }} - 实例详情{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">
+        <a href="/" class="text-decoration-none text-muted">←</a>
+        <i class="bi bi-server text-primary"></i> <span id="detail-title">{{ instance_name }}</span>
+    </h4>
+    <div>
+        <button class="btn btn-outline-secondary btn-sm" onclick="testConnection()">
+            <i class="bi bi-plug"></i> 测试连接
+        </button>
+        <button class="btn btn-primary btn-sm" onclick="runInspection()">
+            <i class="bi bi-play-fill"></i> 立即巡检
+        </button>
+    </div>
+</div>
+
+<!-- 实例信息卡 -->
+<div class="row g-3 mb-3">
+    <div class="col-md-3">
+        <div class="card"><div class="card-body text-center py-2">
+            <small class="text-muted">连接状态</small>
+            <div class="fw-bold" id="info-connected">--</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body text-center py-2">
+            <small class="text-muted">主机地址</small>
+            <div class="fw-bold" id="info-host">--</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body text-center py-2">
+            <small class="text-muted">最近巡检</small>
+            <div class="fw-bold" id="info-last-check">--</div>
+        </div></div>
+    </div>
+    <div class="col-md-3">
+        <div class="card"><div class="card-body text-center py-2">
+            <small class="text-muted">活跃告警</small>
+            <div class="fw-bold" id="info-alerts">--</div>
+        </div></div>
+    </div>
+</div>
+
+<!-- 巡检指标面板 -->
+<div class="row g-3" id="inspection-panels">
+    <div class="col-12 text-center text-muted py-5">加载中...</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const instanceName = '{{ instance_name }}';
+let instanceData = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    loadDetail();
+});
+
+function loadDetail() {
+    fetch(`/api/instance/${instanceName}`)
+        .then(res => res.json())
+        .then(res => {
+            if (!res.success) return;
+            instanceData = res.data;
+            renderDetail(res.data);
+        });
+}
+
+function renderDetail(data) {
+    document.getElementById('detail-title').textContent =
+        `${data.instance.name}${data.instance.description ? ' - ' + data.instance.description : ''}`;
+    document.getElementById('info-connected').innerHTML = data.is_connected
+        ? '<span class="text-success"><i class="bi bi-check-circle"></i> 已连接</span>'
+        : '<span class="text-danger"><i class="bi bi-x-circle"></i> 未连接</span>';
+    document.getElementById('info-host').textContent = `${data.instance.host}:${data.instance.port}`;
+    document.getElementById('info-last-check').textContent = data.last_inspection || '从未';
+    document.getElementById('info-alerts').textContent = data.alerts.length;
+
+    // 渲染各巡检分类面板
+    const panels = document.getElementById('inspection-panels');
+    const categoryConfig = {
+        disk: { name: '磁盘', icon: 'hdd', color: 'primary' },
+        memory: { name: '内存', icon: 'cpu', color: 'info' },
+        jobs: { name: '作业', icon: 'clock-history', color: 'secondary' },
+        backups: { name: '备份', icon: 'cloud-upload', color: 'success' },
+        db_integrity: { name: '完整性', icon: 'shield-check', color: 'dark' },
+        blocking: { name: '阻塞', icon: 'pause-circle', color: 'warning' },
+        slow_query: { name: '慢查询', icon: 'hourglass-split', color: 'danger' },
+        index_frag: { name: '索引碎片', icon: 'puzzle', color: 'secondary' },
+        error_log: { name: '错误日志', icon: 'journal-text', color: 'dark' },
+        wait_stats: { name: '等待统计', icon: 'bar-chart', color: 'info' },
+        deadlock: { name: '死锁', icon: 'x-octagon', color: 'danger' },
+    };
+
+    panels.innerHTML = Object.entries(categoryConfig).map(([cat, cfg]) => {
+        const info = data.inspection_data[cat];
+        const latest = info ? info.latest : null;
+        const statusBadge = latest
+            ? { ok: 'bg-success', warning: 'bg-warning text-dark', error: 'bg-danger' }[latest.status] || 'bg-secondary'
+            : 'bg-secondary';
+        const statusText = latest
+            ? { ok: '正常', warning: '警告', error: '异常' }[latest.status] || latest.status
+            : '无数据';
+        const timeText = latest ? latest.check_time : '--';
+
+        return `
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-${cfg.icon} text-${cfg.color}"></i> ${cfg.name}</span>
+                        <span class="badge ${statusBadge}">${statusText}</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="small text-muted mb-2">最近检查: ${timeText}</p>
+                        ${latest ? `<pre class="bg-light p-2 rounded small" style="max-height:200px;overflow:auto;">${JSON.stringify(latest.data, null, 2)}</pre>` : '<p class="text-muted small">暂无数据</p>'}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function testConnection() {
+    fetch(`/api/instances/${instanceName}/test`)
+        .then(res => res.json())
+        .then(res => {
+            alert(res.success ? '连接成功' : '连接失败: ' + res.error);
+        });
+}
+
+function runInspection() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '巡检中...';
+    fetch('/api/inspection/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({instance: instanceName}),
+    })
+    .then(res => res.json())
+    .then(() => {
+        btn.disabled = false;
+        btn.textContent = '立即巡检';
+        loadDetail();
+    });
+}
+</script>
+{% endblock %}

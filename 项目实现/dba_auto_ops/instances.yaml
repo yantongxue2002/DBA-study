@@ -1,0 +1,121 @@
+# SQL Server 实例列表
+instances:
+  - name: "成都"
+    host: "10.110.110.104"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "天门"
+    host: "10.90.178.5"
+    port: 1433
+    user: "read_005647"
+    password: "Wg@123456.."
+    description: ""
+    enabled: true
+
+  - name: "东莞沃特佳100"
+    host: "10.20.1.100"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "东莞沃特佳101"
+    host: "10.20.1.101"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "东莞MGEA测试"
+    host: "10.20.1.192"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "东莞MGEA生产"
+    host: "10.20.1.193"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.130"
+    host: "10.0.8.130"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.133"
+    host: "10.0.8.133"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.134"
+    host: "10.0.8.134"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.241"
+    host: "10.0.8.241"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.242"
+    host: "10.0.8.242"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.245"
+    host: "10.0.8.245"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.11.213"
+    host: "10.0.11.213"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true
+
+  - name: "10.0.8.162"
+    host: "10.0.8.162"
+    port: 6037
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: "非标准端口6037"
+    enabled: true
+
+  - name: "10.110.110.108"
+    host: "10.110.110.108"
+    port: 1433
+    user: "dba_admin"
+    password: "c=&%86GQ2U"
+    description: ""
+    enabled: true

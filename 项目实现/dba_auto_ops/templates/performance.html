@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}性能分析 - DBA 自动运维平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-graph-up-arrow text-primary"></i> 性能分析</h4>
+    <div>
+        <select class="form-select form-select-sm d-inline-block w-auto" id="perf-instance">
+            <option value="">选择实例...</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadPerformance()">
+            <i class="bi bi-search"></i> 分析
+        </button>
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- ===== 等待统计 Top 10 ===== -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-hourglass-split"></i> 等待统计 Top 10
+                <span id="wait-status" class="badge bg-secondary ms-2">等待分析</span>
+            </div>
+            <div class="card-body">
+                <div id="wait-stats-chart" style="height: 350px;">
+                    <p class="text-center text-muted py-5">
+                        <i class="bi bi-arrow-up-left-circle fs-3 d-block mb-2"></i>
+                        请选择实例后点击"分析"
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 高消耗查询 TOP 20 ===== -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-cpu"></i> 高消耗查询 TOP 20
+                <span id="query-status" class="badge bg-secondary ms-2">等待分析</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>数据库</th>
+                                <th>CPU(ms)</th>
+                                <th>IO</th>
+                                <th>耗时(ms)</th>
+                                <th>执行次数</th>
+                                <th>查询文本</th>
+                            </tr>
+                        </thead>
+                        <tbody id="query-tbody">
+                            <tr><td colspan="7" class="text-center text-muted py-4">
+                                <i class="bi bi-arrow-up-left-circle d-block mb-2"></i>
+                                请选择实例后点击"分析"
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== 索引建议 ===== -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <i class="bi bi-puzzle"></i> 索引建议
+                <span class="text-muted small ms-2">(缺失索引 + 高碎片索引)</span>
+                <span id="index-status" class="badge bg-secondary ms-2">等待分析</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>数据库</th>
+                                <th>表名</th>
+                                <th>建议</th>
+                                <th>影响度</th>
+                                <th>预估提升</th>
+                                <th>DDL脚本</th>
+                            </tr>
+                        </thead>
+                        <tbody id="index-tbody">
+                            <tr><td colspan="6" class="text-center text-muted py-4">
+                                <i class="bi bi-arrow-up-left-circle d-block mb-2"></i>
+                                请选择实例后点击"分析"
+                            </td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    fetch('/api/instances')
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                const sel = document.getElementById('perf-instance');
+                res.data.forEach(inst => {
+                    sel.innerHTML += `<option value="${inst.name}">${inst.name}</option>`;
+                });
+            }
+        });
+});
+
+// 状态标签更新
+function setStatus(elementId, text, badgeClass) {
+    const el = document.getElementById(elementId);
+    el.textContent = text;
+    el.className = 'badge ms-2 ' + badgeClass;
+}
+
+// 空数据提示
+function showEmpty(tableBodyId, chartDivId, message, icon) {
+    const iconHtml = icon || 'info-circle';
+    const html = `<tr><td colspan="99" class="text-center text-muted py-4">
+        <i class="bi bi-${iconHtml} d-block mb-2 fs-4"></i>${message}
+    </td></tr>`;
+    if (tableBodyId) {
+        document.getElementById(tableBodyId).innerHTML = html;
+    }
+    if (chartDivId) {
+        document.getElementById(chartDivId).innerHTML =
+            `<p class="text-center text-muted py-5"><i class="bi bi-${iconHtml} fs-3 d-block mb-2"></i>${message}</p>`;
+    }
+}
+
+function loadPerformance() {
+    const instance = document.getElementById('perf-instance').value;
+    if (!instance) { alert('请选择实例'); return; }
+
+    // 显示加载状态
+    setStatus('wait-status', '加载中...', 'bg-info');
+    setStatus('query-status', '加载中...', 'bg-info');
+    setStatus('index-status', '加载中...', 'bg-info');
+    showEmpty('query-tbody', null, '加载中，请稍候...', 'hourglass-split');
+    showEmpty('index-tbody', null, '加载中，请稍候...', 'hourglass-split');
+    document.getElementById('wait-stats-chart').innerHTML =
+        '<p class="text-center text-muted py-5"><i class="bi bi-hourglass-split fs-3 d-block mb-2"></i>加载中，请稍候...</p>';
+
+    // 一次性拉取三个类别的数据
+    const categories = ['wait_stats', 'slow_query', 'index_frag'];
+    const promises = categories.map(cat =>
+        fetch(`/api/inspection?instance=${encodeURIComponent(instance)}&category=${cat}`)
+            .then(res => res.json())
+            .then(res => {
+                if (!res.success || !res.data || !res.data.length) {
+                    return { category: cat, error: '暂无巡检数据，请先对该实例执行巡检', data: null };
+                }
+                const latest = res.data[0];
+                if (latest.status === 'error') {
+                    return { category: cat, error: latest.error || '采集失败', data: latest.data };
+                }
+                return { category: cat, error: null, data: latest.data };
+            })
+            .catch(err => {
+                return { category: cat, error: '网络请求失败: ' + err.message, data: null };
+            })
+    );
+
+    Promise.all(promises).then(results => {
+        results.forEach(r => {
+            if (r.category === 'wait_stats') {
+                if (r.error) {
+                    setStatus('wait-status', '获取失败', 'bg-danger');
+                    showEmpty(null, 'wait-stats-chart',
+                        '获取等待统计失败：' + r.error, 'exclamation-triangle');
+                } else {
+                    renderWaitStatsChart(r.data);
+                }
+            } else if (r.category === 'slow_query') {
+                if (r.error) {
+                    setStatus('query-status', '获取失败', 'bg-danger');
+                    showEmpty('query-tbody', null,
+                        '获取慢查询数据失败：' + r.error, 'exclamation-triangle');
+                } else {
+                    renderSlowQueries(r.data);
+                }
+            } else if (r.category === 'index_frag') {
+                if (r.error) {
+                    setStatus('index-status', '获取失败', 'bg-danger');
+                    showEmpty('index-tbody', null,
+                        '获取索引建议失败：' + r.error, 'exclamation-triangle');
+                } else {
+                    renderIndexSuggestions(r.data);
+                }
+            }
+        });
+    }).catch(err => {
+        ['wait', 'query', 'index'].forEach(id => {
+            setStatus(id + '-status', '请求异常', 'bg-danger');
+        });
+        showEmpty('query-tbody', 'wait-stats-chart', '分析请求异常: ' + err.message, 'exclamation-triangle');
+        showEmpty('index-tbody', null, '分析请求异常: ' + err.message, 'exclamation-triangle');
+    });
+}
+
+// ====== 等待统计图表 ======
+function renderWaitStatsChart(data) {
+    const chartDom = document.getElementById('wait-stats-chart');
+    const waits = (data.wait_stats || []).slice(0, 10);
+
+    if (!waits.length) {
+        setStatus('wait-status', '无数据', 'bg-warning text-dark');
+        showEmpty(null, 'wait-stats-chart',
+            '该实例暂无等待统计数据，请先执行 wait_stats 巡检', 'info-circle');
+        return;
+    }
+
+    setStatus('wait-status', '正常 (' + waits.length + ' 项)', 'bg-success');
+
+    // dispose 旧图表避免重复初始化报错
+    const oldChart = echarts.getInstanceByDom(chartDom);
+    if (oldChart) oldChart.dispose();
+
+    const chart = echarts.init(chartDom);
+    chart.setOption({
+        tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+        xAxis: {
+            type: 'category',
+            data: waits.map(w => w.wait_type),
+            axisLabel: { rotate: 35, fontSize: 11 },
+        },
+        yAxis: { type: 'value', name: '等待时间(ms)' },
+        series: [{
+            type: 'bar',
+            data: waits.map((w, i) => ({
+                value: w.wait_time_ms || w.waiting_tasks_count || 0,
+                itemStyle: {
+                    color: ['#e74c3c','#e67e22','#f1c40f','#2ecc71','#3498db',
+                            '#9b59b6','#1abc9c','#34495e','#7f8c8d','#95a5a6'][i],
+                }
+            })),
+            label: { show: true, position: 'top', fontSize: 10,
+                formatter: p => p.value > 1000 ? (p.value/1000).toFixed(1)+'k' : p.value },
+        }],
+        grid: { left: 80, right: 30, bottom: 80, top: 40 },
+    });
+
+    // 响应式 resize
+    window.addEventListener('resize', () => chart.resize());
+}
+
+// ====== 高消耗查询 ======
+function renderSlowQueries(data) {
+    const tbody = document.getElementById('query-tbody');
+    // 合并所有来源的查询
+    const queries = [
+        ...(data.top_queries_cpu || []),
+        ...(data.top_queries_io || []),
+        ...(data.top_queries_duration || []),
+    ];
+
+    if (!queries.length) {
+        setStatus('query-status', '无数据', 'bg-warning text-dark');
+        showEmpty('query-tbody', null,
+            '该实例暂无高消耗查询数据，Plan Cache 可能已被清空或尚未采集', 'info-circle');
+        return;
+    }
+
+    setStatus('query-status', '正常 (' + queries.length + ' 条)', 'bg-success');
+
+    tbody.innerHTML = queries.slice(0, 20).map((q, i) => `
+        <tr>
+            <td>${i + 1}</td>
+            <td>${q.database_name || q.db_name || '-'}</td>
+            <td>${q.total_cpu_ms || q.avg_cpu_time || '-'}</td>
+            <td>${q.total_logical_reads || q.total_io || '-'}</td>
+            <td>${q.total_elapsed_time || q.avg_duration || '-'}</td>
+            <td>${q.execution_count || '-'}</td>
+            <td class="small" style="max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
+                title="${(q.query_text || q.text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;')}">
+                ${(q.query_text || q.text || '-').replace(/</g, '&lt;')}
+            </td>
+        </tr>
+    `).join('');
+}
+
+// ====== 索引建议 ======
+function renderIndexSuggestions(data) {
+    const tbody = document.getElementById('index-tbody');
+    const items = [
+        ...(data.fragmented_indexes || []).map(i => ({ ...i, source: 'frag' })),
+        ...(data.missing_indexes || []).map(i => ({ ...i, source: 'missing' })),
+    ];
+
+    if (!items.length) {
+        setStatus('index-status', '无数据', 'bg-warning text-dark');
+        showEmpty('index-tbody', null,
+            '该实例暂无索引建议 — 碎片索引需在凌晨执行巡检，缺失索引请在实例上执行 slow_query 巡检', 'info-circle');
+        return;
+    }
+
+    setStatus('index-status', '正常 (' + items.length + ' 条)', 'bg-success');
+
+    tbody.innerHTML = items.slice(0, 20).map((item, i) => {
+        let badgeHtml = '';
+        if (item.recommendation === 'REBUILD' || item.avg_fragmentation_in_percent > 30) {
+            badgeHtml = '<span class="badge bg-danger">建议 REBUILD</span>';
+        } else if (item.recommendation === 'REORGANIZE' || (item.avg_fragmentation_in_percent > 10 && item.avg_fragmentation_in_percent <= 30)) {
+            badgeHtml = '<span class="badge bg-warning text-dark">建议 REORGANIZE</span>';
+        } else if (item.source === 'missing') {
+            badgeHtml = '<span class="badge bg-info">缺失索引</span>';
+        } else {
+            badgeHtml = '<span class="badge bg-secondary">OK</span>';
+        }
+
+        return `
+        <tr>
+            <td>${item.database_name || item.db_name || '-'}</td>
+            <td>${item.table_name || item.object_name || item.statement || '-'}</td>
+            <td>${badgeHtml}</td>
+            <td>${item.avg_fragmentation_in_percent || item.avg_impact_pct || item.impact || '-'}%</td>
+            <td>${item.improvement_measure || item.user_seeks || '-'}</td>
+            <td class="small"><code>${(item.ddl_script || item.create_index_statement || '-').replace(/</g, '&lt;')}</code></td>
+        </tr>
+        `;
+    }).join('');
+}
+</script>
+{% endblock %}

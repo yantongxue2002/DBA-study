@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% block title %}巡检结果 - DBA 自动运维平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-clipboard-check text-primary"></i> 巡检结果</h4>
+    <div class="btn-group">
+        <select class="form-select form-select-sm" id="filter-instance" onchange="loadResults()">
+            <option value="">全部实例</option>
+        </select>
+        <select class="form-select form-select-sm" id="filter-category" onchange="loadResults()">
+            <option value="">全部类别</option>
+            <option value="disk">磁盘</option>
+            <option value="memory">内存</option>
+            <option value="jobs">作业</option>
+            <option value="backups">备份</option>
+            <option value="db_integrity">数据库完整性</option>
+            <option value="blocking">阻塞</option>
+            <option value="slow_query">慢查询</option>
+            <option value="index_frag">索引碎片</option>
+            <option value="error_log">错误日志</option>
+            <option value="wait_stats">等待统计</option>
+            <option value="deadlock">死锁</option>
+        </select>
+        <button class="btn btn-primary btn-sm" onclick="loadResults()">
+            <i class="bi bi-search"></i> 查询
+        </button>
+    </div>
+</div>
+
+<!-- 结果表格 -->
+<div class="card">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>实例</th>
+                        <th>类别</th>
+                        <th>状态</th>
+                        <th>巡检时间</th>
+                        <th>摘要</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="result-tbody">
+                    <tr><td colspan="6" class="text-center text-muted">请选择筛选条件后查询</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 巡检详情弹窗 -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">巡检详情</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="detail-content" style="max-height: 500px; overflow: auto;"
+                     class="bg-light p-3 rounded"></pre>
+            </div>
+            <div class="modal-footer">
+                <a href="#" id="detail-history-link" class="btn btn-outline-primary btn-sm">查看历史趋势</a>
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    loadInstanceFilter();
+    loadResults();
+});
+
+function loadInstanceFilter() {
+    fetch('/api/instances')
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                const sel = document.getElementById('filter-instance');
+                res.data.forEach(inst => {
+                    sel.innerHTML += `<option value="${inst.name}">${inst.name}</option>`;
+                });
+            }
+        });
+}
+
+function loadResults() {
+    const instance = document.getElementById('filter-instance').value;
+    const category = document.getElementById('filter-category').value;
+    const params = new URLSearchParams();
+    if (instance) params.set('instance', instance);
+    if (category) params.set('category', category);
+
+    fetch('/api/inspection?' + params.toString())
+        .then(res => res.json())
+        .then(res => {
+            if (!res.success) return;
+            renderResults(res.data);
+        });
+}
+
+function renderResults(results) {
+    const tbody = document.getElementById('result-tbody');
+    if (!results.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">暂无巡检数据</td></tr>';
+        return;
+    }
+
+    const categoryNames = {
+        disk: '磁盘', memory: '内存', jobs: '作业', backups: '备份',
+        db_integrity: '数据库完整性', blocking: '阻塞', slow_query: '慢查询',
+        index_frag: '索引碎片', error_log: '错误日志', wait_stats: '等待统计',
+        deadlock: '死锁',
+    };
+
+    tbody.innerHTML = results.map(r => {
+        const statusBadge = {
+            ok: '<span class="badge bg-success">正常</span>',
+            warning: '<span class="badge bg-warning text-dark">警告</span>',
+            error: '<span class="badge bg-danger">异常</span>',
+        }[r.status] || r.status;
+
+        return `
+            <tr>
+                <td><a href="/instance/${r.instance_name}" class="fw-bold">${r.instance_name}</a></td>
+                <td>${categoryNames[r.category] || r.category}</td>
+                <td>${statusBadge}</td>
+                <td class="small">${r.check_time}</td>
+                <td class="small">${r.summary || ''}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-secondary"
+                            onclick="showDetail(${r.id}, '${r.instance_name}', '${r.category}')">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function showDetail(id, instance, category) {
+    // 详细数据已在 result 列表中体现，这里简化展示
+    // 实际可以补充更多细节
+    document.getElementById('detail-history-link').href =
+        `/instance/${instance}`;
+    const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+    modal.show();
+}
+</script>
+{% endblock %}

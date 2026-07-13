@@ -1,0 +1,107 @@
+/* DBA 自动运维平台 - 自定义样式 */
+
+body {
+    background-color: #f5f6fa;
+    font-size: 14px;
+}
+
+.navbar-brand {
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* 仪表盘概览卡片 */
+#overview-cards .card {
+    transition: transform 0.15s ease;
+}
+#overview-cards .card:hover {
+    transform: translateY(-2px);
+}
+
+/* 实例表格 */
+#instance-table th {
+    white-space: nowrap;
+    font-size: 13px;
+}
+#instance-table td {
+    vertical-align: middle;
+    font-size: 13px;
+}
+
+/* 巡检面板 */
+.inspection-panel .card-header {
+    font-weight: 600;
+}
+
+/* 报告打印样式 */
+@media print {
+    nav, button, .navbar, #overview-cards {
+        display: none !important;
+    }
+    .card {
+        border: 1px solid #ddd !important;
+        break-inside: avoid;
+    }
+    body {
+        background: white;
+    }
+    .report-instance-card {
+        break-inside: avoid;
+    }
+}
+
+/* 预格式化数据展示 */
+pre {
+    font-size: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+/* 表格悬停高亮 */
+.table-hover tbody tr:hover {
+    background-color: #eef2ff;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+    #instance-table {
+        font-size: 11px;
+    }
+    #overview-cards .col-md-2 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+
+/* Badge 增强 */
+.badge {
+    font-weight: 500;
+}
+
+/* 卡片阴影 */
+.card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border: 1px solid #e0e3e8;
+}
+
+/* 代码块样式 */
+code {
+    font-size: 12px;
+    color: #d63384;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}

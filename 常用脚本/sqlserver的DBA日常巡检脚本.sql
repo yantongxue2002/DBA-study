@@ -99,8 +99,8 @@ SELECT
     mf.name AS 文件名称,
     mf.physical_name AS 文件物理路径,
     mf.type_desc AS 文件类型, -- ROWS=数据文件，LOG=日志文件
-    CAST(mf.size * 8.0 / 1024 AS DECIMAL(10,2)) AS 文件当前大小_MB,
-    CAST(mf.max_size * 8.0 / 1024 AS DECIMAL(10,2)) AS 文件最大大小_MB, -- 0=无限制
+    CAST(mf.size * 8.0 / 1024 / 1024 AS DECIMAL(10,2)) AS 文件当前大小_GB,
+    CAST(mf.max_size * 8.0 / 1024 / 1024 AS DECIMAL(10,2)) AS 文件最大大小_GB, -- 0=无限制
     CAST(mf.growth AS DECIMAL(10,2)) AS 增长值,
     CASE mf.is_percent_growth WHEN 1 THEN '百分比增长' ELSE '固定大小增长(MB)' END AS 增长方式,
     mf.state_desc AS 文件状态

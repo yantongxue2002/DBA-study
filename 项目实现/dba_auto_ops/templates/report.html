@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}巡检报告 - DBA 自动运维平台{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-file-earmark-text text-primary"></i> 巡检报告</h4>
+    <div>
+        <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
+            <i class="bi bi-printer"></i> 打印报告
+        </button>
+        <button class="btn btn-outline-success btn-sm" onclick="exportHTML()">
+            <i class="bi bi-download"></i> 导出HTML
+        </button>
+    </div>
+</div>
+
+<!-- 报告头部 -->
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>DBA 运维巡检报告</h5>
+                <p class="text-muted small mb-0">生成时间: {{ data.generated_at }}</p>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <p class="mb-0">
+                    <span class="badge bg-success me-2">正常: {{ data.overview.green }}</span>
+                    <span class="badge bg-warning me-2">警告: {{ data.overview.yellow }}</span>
+                    <span class="badge bg-danger me-2">异常: {{ data.overview.red }}</span>
+                    <span class="badge bg-secondary">离线: {{ data.overview.disconnected }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 每个实例的详细报告 -->
+{% for inst in data.instances %}
+<div class="card mb-3 report-instance-card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>
+            {% if inst.light == 'green' %}
+            <i class="bi bi-circle-fill text-success"></i>
+            {% elif inst.light == 'yellow' %}
+            <i class="bi bi-circle-fill text-warning"></i>
+            {% else %}
+            <i class="bi bi-circle-fill text-danger"></i>
+            {% endif %}
+            <strong>{{ inst.name }}</strong>
+            <small class="text-muted ms-2">{{ inst.description }}</small>
+        </span>
+        <span>
+            {% if inst.is_connected %}
+            <span class="badge bg-success">已连接</span>
+            {% else %}
+            <span class="badge bg-danger">未连接</span>
+            {% endif %}
+            <small class="text-muted ms-2">最近巡检: {{ inst.last_inspection or '从未' }}</small>
+        </span>
+    </div>
+    <div class="card-body">
+        <div class="row g-2">
+            {% for r in inst.latest_results %}
+            <div class="col-md-4 col-lg-3">
+                <div class="border rounded p-2">
+                    <small class="text-muted">
+                        {% set cat_names = {
+                            'disk': '💾 磁盘', 'memory': '🧠 内存', 'jobs': '⏱ 作业',
+                            'backups': '☁ 备份', 'db_integrity': '🛡 完整性', 'blocking': '⏸ 阻塞',
+                            'slow_query': '⏳ 慢查询', 'index_frag': '🧩 索引碎片',
+                            'error_log': '📋 错误日志', 'wait_stats': '📊 等待统计', 'deadlock': '💀 死锁'
+                        } %}
+                        {{ cat_names.get(r.category, r.category) }}
+                    </small>
+                    <span class="float-end">
+                        {% if r.status == 'ok' %}
+                        <span class="badge bg-success">✓</span>
+                        {% elif r.status == 'warning' %}
+                        <span class="badge bg-warning text-dark">⚠</span>
+                        {% else %}
+                        <span class="badge bg-danger">✗</span>
+                        {% endif %}
+                    </span>
+                    <div class="small text-muted">{{ r.summary or '' }}</div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- 告警汇总 -->
+<div class="card">
+    <div class="card-header">
+        <i class="bi bi-exclamation-triangle text-warning"></i>
+        告警汇总 (共 {{ data.alert_summary.total }} 条:
+        严重 {{ data.alert_summary.critical }}, 警告 {{ data.alert_summary.warning }})
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead class="table-light">
+                    <tr><th>时间</th><th>实例</th><th>严重度</th><th>消息</th></tr>
+                </thead>
+                <tbody>
+                    {% for a in data.alert_summary.items %}
+                    <tr>
+                        <td class="small">{{ a.created_at }}</td>
+                        <td>{{ a.instance_name }}</td>
+                        <td>
+                            {% if a.severity == 'critical' %}
+                            <span class="badge bg-danger">严重</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">警告</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ a.message }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="text-center text-success">🎉 无活跃告警</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportHTML() {
+    const html = document.documentElement.outerHTML;
+    const blob = new Blob(['<!DOCTYPE html>\n' + html], {type: 'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `DBA巡检报告_${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

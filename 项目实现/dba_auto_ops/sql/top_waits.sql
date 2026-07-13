@@ -1,0 +1,71 @@
+-- ============================================
+-- 等待统计巡检
+-- Top 等待类型 & 占比分析
+-- ============================================
+
+-- 方法1: 累计等待统计 (自上次重启以来)
+WITH WaitStats AS (
+    SELECT
+        wait_type,
+        wait_time_ms,
+        waiting_tasks_count,
+        signal_wait_time_ms,
+        wait_time_ms - signal_wait_time_ms AS resource_wait_time_ms,
+        CAST(100.0 * wait_time_ms / SUM(wait_time_ms) OVER() AS DECIMAL(5,2)) AS wait_pct,
+        CAST(100.0 * signal_wait_time_ms / NULLIF(wait_time_ms, 0) AS DECIMAL(5,2)) AS signal_wait_pct
+    FROM sys.dm_os_wait_stats
+    WHERE wait_type NOT IN (
+        -- 排除这些无害的等待类型
+        'BROKER_EVENTHANDLER', 'BROKER_RECEIVE_WAITFOR', 'BROKER_TASK_STOP',
+        'BROKER_TO_FLUSH', 'BROKER_TRANSMITTER', 'CHECKPOINT_QUEUE',
+        'CLR_AUTO_EVENT', 'CLR_MANUAL_EVENT', 'CLR_SEMAPHORE',
+        'DBMIRROR_DBM_EVENT', 'DBMIRROR_EVENTS_QUEUE', 'DBMIRROR_WORKER_QUEUE',
+        'DBMIRRORING_CMD', 'DIRTY_PAGE_POLL', 'DISPATCHER_QUEUE_SEMAPHORE',
+        'FT_IFTS_SCHEDULER_IDLE_WAIT', 'FT_IFTSHC_MUTEX',
+        'HADR_CLUSAPI_CALL', 'HADR_FILESTREAM_IOMGR_IOCOMPLETION',
+        'HADR_LOGCAPTURE_WAIT', 'HADR_NOTIFICATION_DEQUEUE',
+        'HADR_TIMER_TASK', 'HADR_WORK_QUEUE',
+        'LAZYWRITER_SLEEP', 'LOGMGR_QUEUE',
+        'MEMORY_ALLOCATION_EXT', 'ONDEMAND_TASK_QUEUE',
+        'PREEMPTIVE_OS_LIBRARYOPS', 'PREEMPTIVE_OS_COMOPS',
+        'PREEMPTIVE_OS_CRYPTOPS', 'PREEMPTIVE_OS_PIPEOPS',
+        'PREEMPTIVE_OS_AUTHENTICATIONOPS', 'PREEMPTIVE_OS_GENERICOPS',
+        'PREEMPTIVE_OS_VERIFYTRUST', 'PREEMPTIVE_OS_FILEOPS',
+        'PREEMPTIVE_OS_DEVICEOPS', 'PREEMPTIVE_OS_QUERYREGISTRY',
+        'PREEMPTIVE_OS_WRITEFILE', 'PREEMPTIVE_XE_CALLBACKEXECUTE',
+        'PREEMPTIVE_XE_DISPATCHER', 'PREEMPTIVE_XE_GETTARGETSTATE',
+        'PREEMPTIVE_XE_SESSIONCOMMIT', 'PREEMPTIVE_XE_TARGETINIT',
+        'PREEMPTIVE_XE_TARGETFINALIZE',
+        'PWAIT_ALL_COMPONENTS_INITIALIZED', 'PWAIT_DIRECTLOGCONSUMER_GETNEXT',
+        'QDS_PERSIST_TASK_MAIN_LOOP_SLEEP', 'QDS_ASYNC_QUEUE',
+        'QDS_CLEANUP_STALE_QUERIES_TASK_MAIN_LOOP_SLEEP', 'QDS_SHUTDOWN_QUEUE',
+        'REDO_THREAD_PENDING_WORK', 'REQUEST_FOR_DEADLOCK_SEARCH',
+        'RESOURCE_QUEUE', 'SLEEP_BPOOL_FLUSH', 'SLEEP_DBSTARTUP',
+        'SLEEP_DCOMSTARTUP', 'SLEEP_MASTERDBREADY', 'SLEEP_MASTERMDREADY',
+        'SLEEP_MASTERUPGRADED', 'SLEEP_MSDBSTARTUP', 'SLEEP_SYSTEMTASK',
+        'SLEEP_TASK', 'SLEEP_TEMPDBSTARTUP', 'SP_SERVER_DIAGNOSTICS_SLEEP',
+        'SQLTRACE_BUFFER_FLUSH', 'SQLTRACE_INCREMENTAL_FLUSH_SLEEP',
+        'SQLTRACE_WAIT_ENTRIES', 'WAIT_FOR_RESULTS', 'WAIT_XTP_RECOVERY',
+        'WAIT_XTP_HOST_WAIT', 'WAIT_XTP_OFFLINE_CKPT_NEW_LOG',
+        'WAIT_XTP_CKPT_CLOSE', 'XE_DISPATCHER_JOIN',
+        'XE_DISPATCHER_WAIT', 'XE_TIMER_EVENT', 'WAITFOR',
+        'WAIT_XTP_TASK_SHUTDOWN', 'SLEEP_BPOOL_STEAL',
+        'PARALLEL_REDO_DRAIN_WORKER','PARALLEL_REDO_LOG_CACHE',
+        'PARALLEL_REDO_TRAN_LIST','PARALLEL_REDO_WORKER_SYNC',
+        'PARALLEL_REDO_WORKER_WAIT_WORK'
+    )
+    AND waiting_tasks_count > 0
+)
+SELECT TOP 20
+    wait_type,
+    wait_time_ms,
+    CAST(wait_time_ms / 1000.0 / 60 AS DECIMAL(10,2)) AS wait_time_minutes,
+    waiting_tasks_count,
+    signal_wait_time_ms,
+    resource_wait_time_ms,
+    wait_pct,
+    signal_wait_pct,
+    -- 平均每次等待时长
+    CAST(wait_time_ms * 1.0 / NULLIF(waiting_tasks_count, 0) AS DECIMAL(10,2)) AS avg_wait_ms_per_task
+FROM WaitStats
+ORDER BY wait_time_ms DESC;
