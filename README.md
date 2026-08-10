@@ -93,5 +93,24 @@
 - 书籍：《高性能 MySQL》《MySQL 技术内幕：InnoDB 存储引擎》等等；
 - 实战：美团/阿里/腾讯云数据库技术博客。
 
+## 📢 关注与交流
+
+> 欢迎关注我的公众号和 CSDN 博客，持续分享 DBA 学习笔记与实战经验！
+
+<table>
+  <tr>
+    <td align="center">
+      <img src="image/微信公众号.jpg" alt="微信公众号" width="300" />
+      <br />
+      <b>微信公众号</b>
+    </td>
+    <td align="center">
+      <img src="image/CSDN主页.png" alt="CSDN主页" width="300" />
+      <br />
+      <b>CSDN 博客主页</b>
+    </td>
+  </tr>
+</table>
+
 ## ✨ 寄语
 DBA 成长没有捷径，「原理+实战+复盘」是核心。每一次踩坑都是进步，每一次优化都是沉淀。持续学习，持续输出，终成资深！
